@@ -3,15 +3,15 @@
 #include <time.h>
 #include <string.h>
 
-#define TOTAL_ROUNDS 5   // 총 진행할 게임 판수
-#define DICE_COUNT 5     // 사용하는 주사위 개수
+#define TOTAL_ROUNDS 5  // 총 진행할 게임 판수
+#define DICE_COUNT 5    // 사용하는 주사위 개수
 
 // 각 판의 기록을 저장하기 위한 구조체
 typedef struct {
-    int round;              // 판 번호
-    int dice[DICE_COUNT];   // 굴려 나온 주사위 5개의 눈
-    char category[30];      // 판정된 족보 이름
-    int score;              // 해당 판에서 얻은 점수
+    int round;                 // 판 번호
+    int dice[DICE_COUNT];      // 굴려 나온 주사위 5개의 눈
+    char category[30];         // 판정된 족보 이름
+    int score;                 // 해당 판에서 얻은 점수
 } RoundRecord;
 
 // 주사위 5개를 무작위(1~6)로 굴리는 함수
@@ -55,7 +55,7 @@ void evaluate_hand(const int dice[], char *out_category, int *out_score) {
         }
     }
 
-    // 3. 스트레이트 (Straight): 연속된 눈 4개 이상 -> 30점
+    // 3. 스트레이트 (Straight): 연속된 눈 4개 이상 (1-2-3-4, 2-3-4-5, 3-4-5-6) -> 30점
     if ((counts[1] >= 1 && counts[2] >= 1 && counts[3] >= 1 && counts[4] >= 1) ||
         (counts[2] >= 1 && counts[3] >= 1 && counts[4] >= 1 && counts[5] >= 1) ||
         (counts[3] >= 1 && counts[4] >= 1 && counts[5] >= 1 && counts[6] >= 1)) {
@@ -98,11 +98,13 @@ void evaluate_hand(const int dice[], char *out_category, int *out_score) {
         }
     }
 
+    // 최종 산출된 가장 높은 점수와 족보명을 전달
     *out_score = max_score;
     strcpy(out_category, best_category);
 }
 
 int main() {
+    // 실행할 때마다 다른 난수가 나오도록 시드 초기화
     srand((unsigned int)time(NULL));
 
     RoundRecord records[TOTAL_ROUNDS];
@@ -112,13 +114,20 @@ int main() {
     printf("           주사위 요트 게임 시작          \n");
     printf("=========================================\n\n");
 
+    // 지정된 판수(5판) 동안 반복 진행
     for (int r = 0; r < TOTAL_ROUNDS; r++) {
         records[r].round = r + 1;
 
+        // 1. 주사위 5개 무작위 생성
         roll_dice(records[r].dice);
+
+        // 2. 나온 조합의 족보 판정 및 가장 높은 점수 계산
         evaluate_hand(records[r].dice, records[r].category, &records[r].score);
+
+        // 3. 점수 누적
         total_score += records[r].score;
 
+        // 진행 상황 실시간 출력
         printf("[%d판] 주사위: [ %d %d %d %d %d ] -> 판정: %s (%d점)\n",
                records[r].round,
                records[r].dice[0], records[r].dice[1], records[r].dice[2],
@@ -126,6 +135,7 @@ int main() {
                records[r].category, records[r].score);
     }
 
+    // 4. 모든 판이 종료된 후 총점 및 전체 기록 출력
     printf("\n=========================================\n");
     printf("               최종 판별 기록             \n");
     printf("=========================================\n");
