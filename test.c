@@ -1,110 +1,145 @@
 /*
- * DASF004 (2026-2) · 실습#1 — 습관 트래커 ①: 그 달이 며칠인가
+ * DASF004 (2026-2) · 실습#2 — 습관 트래커 ②: 빈 달력을 그리고, 함수로 쪼갠다
  * ─────────────────────────────────────────────────────────
- * 학번을 붙여 WA1_학번.c 로 저장하고, 제출할 때 확장자를 .txt 로 바꾸세요.
- * 빌드: gcc -Wall -Wextra -std=c11 WA1_학번.c -o wa1
+ * 학번을 붙여 WA2_학번.c 로 저장하고, 제출할 때 확장자를 .txt 로 바꾸세요.
+ * 빌드: gcc -Wall -Wextra -std=c11 WA2_학번.c -o wa2
  *
- * 빈칸은 다섯 곳이고, 채점은 요구사항 1 · 2 · 3 세 항목으로 합니다.
- *   · 요구사항 1 = [TODO 요구사항 1-a] + [TODO 요구사항 1-b]
- *   · 요구사항 2 = [TODO 요구사항 2]
- *   · 요구사항 3 = [TODO 요구사항 3-a] + [TODO 요구사항 3-b]
- *   · [수정 금지] 표시된 줄은 건드리지 마세요.
- *   · 반복문·배열·문자열·함수 정의·구조체·포인터는 쓰지 않습니다. (아직 안 배웠습니다)
- *   · 모든 코드는 main 안에 씁니다.
+ * [TODO 요구사항 1] ~ [TODO 요구사항 4] — 함수 다섯 개의 본문을 채우면 완성입니다(요구사항 2 가 두 개).
+ *   · main 과 함수 선언부는 [수정 금지] 입니다.
+ *   · 배열·문자열·구조체·포인터는 쓰지 않습니다. (아직 안 배웠습니다)
+ *   · (void)lo; 같은 줄은 "아직 안 쓰는 값" 표시입니다 — 구현을 시작하면 지우세요.
  */
 #include <stdio.h>
 
-int main(void)
+/* ── [수정 금지] 함수 선언 ─────────────────────────────── */
+int  readIntInRange(int lo, int hi);
+int  isLeapYear(int year);
+int  daysInMonth(int year, int month);
+int  firstWeekdayOf(int year, int month);
+void printCalendar(int firstWeekday, int days);
+
+/* ── [TODO 요구사항 1] 범위 안의 값이 들어올 때까지 다시 묻는다 ────
+ * 1) 값을 하나 읽는다.
+ * 2) lo~hi 밖이면 아래 두 줄을 내고 다시 읽는다. 범위에 들어올 때까지 반복.
+ *        [오류] %d~%d 사이의 값을 입력하세요.
+ *        >
+ *    (둘째 줄은 "> " 로 끝나고 줄바꿈이 없습니다 — 첫 줄 끝에 \n, 그다음 "> ")
+ * 3) 범위 안의 값을 반환한다.
+ * 함정: 첫 질문은 부르는 쪽(main)이 이미 찍었습니다. 여기서 또 찍지 마세요. */
+int readIntInRange(int lo, int hi)
 {
-    int year = 0;    /* 입력받을 연도 */
-    int month = 0;   /* 입력받을 월 */
-    int isLeap = 0;  /* 입력 연도가 윤년인가 (1=윤년, 0=아님) */
-    int days = 0;    /* 그 달의 일수 */
-    int weeks = 0;   /* 그 일수가 몇 주인가 */
-    int rest = 0;    /* 주로 채우고 남는 날 수 */
-
-    printf("=== 습관 트래커 ===\n");   /* [수정 금지] */
-
-    printf("연도를 입력하세요 (2000~2100): ");   /* [수정 금지] */
-
-    /* ── [TODO 요구사항 1-a] 연도를 읽고 범위를 검증 ──────────────
-     * 1) year 에 정수 하나를 읽어 넣으세요.
-     * 2) year 가 2000~2100 밖이면 아래 두 줄을 출력하고 프로그램을 끝내세요.
-     *     [오류] 연도는 2000~2100 사이여야 합니다.
-     *     프로그램을 종료합니다.
-     * 힌트: 읽는 것은 scanf 이고, 끝내는 것은 return 0; 입니다.
-     * 함정: 「또는」입니다 — 2000보다 작거나, 2100보다 크거나. */
-    scanf("%d", &year);
-    if (year < 2000 || year > 2100) {
-        printf("[오류] 연도는 2000~2100 사이여야 합니다.\n");
-        printf("프로그램을 종료합니다.\n");
-        return 0; 
+    int val = 0;
+    scanf("%d", &val);
+    while (val<lo || val>hi) {
+        printf("[오류] %d~%d 사이의 값을 입력하세요.\n", lo, hi);
+        printf("> ");
+        scanf("%d", &val);
     }
 
+    return val;
+}
 
-    printf("월을 입력하세요 (1~12): ");   /* [수정 금지] */
-
-    /* ── [TODO 요구사항 1-b] 월을 읽고 범위를 검증 ────────────────
-     * month 를 읽고, 1~12 밖이면 아래 두 줄을 출력하고 끝내세요.
-     *     [오류] 월은 1~12 사이여야 합니다.
-     *     프로그램을 종료합니다. */
-    scanf("%d", &month);
-    if (month < 1 || month > 12) {
-        printf("[오류] 월은 1~12 사이여야 합니다.\n");
-        printf("프로그램을 종료합니다.\n");
+/* ── [TODO 요구사항 2-a] 윤년이면 1, 아니면 0 을 반환 ─────────────
+ * 실습#1 에서 main 안에 썼던 식을 그대로 옮겨 오면 됩니다. */
+int isLeapYear(int year)
+{
+    if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)){
+        return 1;
+    } else {
         return 0;
     }
+}
 
-
-    /* ── [TODO 요구사항 2] 윤년 판정 ──────────────────────────────────
-     * 윤년이면 isLeap 에 1 을, 아니면 0 을 넣으세요.
-     * 규칙: 4의 배수이면서 100의 배수가 아니거나, 400의 배수
-     * 힌트: && 와 || 를 한 식에 같이 씁니다. 괄호를 잘 치세요.
-     * 함정: 「4의 배수인가」만 보면 2100년에서 틀립니다. */
-    if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
-        isLeap = 1;
-    } else {
-        isLeap = 0;
-    }
-
-
-    /* ── [TODO 요구사항 3-a] 그 달의 일수 ─────────────────────────────
-     * days 에 그 달의 일수를 넣으세요.
-     *   4·6·9·11월 → 30      2월 → 28 (윤년이면 29)      나머지 → 31
-     * 힌트: if / else if / else 로 세 분기를 만듭니다.
-     * 함정: 2월은 isLeap 값에 따라 다시 갈라집니다. */
+/* ── [TODO 요구사항 2-b] 그 달의 일수를 반환 ──────────────────────
+ * 4·6·9·11월 → 30   2월 → 28(윤년이면 29)   나머지 → 31
+ * 함정: 2월을 판정할 때 isLeapYear 를 「불러서」 쓰세요.
+ *       같은 조건식을 두 번 쓰면 함수로 나눈 의미가 없습니다. */
+int daysInMonth(int year, int month)
+{
     if (month == 4 || month == 6 || month == 9 || month == 11) {
-        days = 30;
+        return 30;
     } else if (month == 2) {
-        if (isLeap == 1) {
-            days = 29;
+        if (isLeapYear(year) == 1) {
+            return 29;
         } else {
-            days = 28;
+            return 28;
         }
     } else {
-        days = 31;
+        return 31;
     }
+}
 
+/* ── [TODO 요구사항 3] 그 달 1일의 요일 (0=일 … 6=토) ─────────────
+ * 기준일: 2000년 1월 1일은 토요일이고, 요일 코드는 6 입니다.
+ * 기준일부터 그 달 1일까지 며칠이 지났는지를 세어 요일을 옮깁니다.
+ *   ① 2000년 ~ (year-1)년   해마다 365일, 윤년이면 366일
+ *   ② 그 해 1월 ~ (month-1)월  달마다 daysInMonth
+ * 함정: 두 단계 모두 「자기 자신」은 포함하지 않습니다.
+ *       2000년 1월을 넣으면 경과일이 0 이고 요일이 그대로 토요일이어야 합니다. */
+int firstWeekdayOf(int year, int month)
+{
+    int totalDays = 0;
+    int y = 0;
+    int m = 0;
 
-    /* ── [TODO 요구사항 3-b] 몇 주 하고 며칠인가 ──────────────────────
-     * days 를 7일씩 묶으면 몇 주가 되고 며칠이 남는지 구하세요.
-     *   weeks 에 주 수를, rest 에 남는 날 수를 넣습니다.
-     *   예) 30일 → weeks = 4, rest = 2
-     * 힌트: 몫은 / 이고 나머지는 % 입니다. 둘 다 W2 에서 배웠습니다. */
-    weeks = days / 7;
-    rest = days % 7;
-
-
-    /* ── 결과 출력 [수정 금지] ────────────────────────────────
-     * 이 서식이 채점 기준입니다. 고치지 마세요. */
-    printf("\n[%d년 %d월]\n", year, month);
-    if (isLeap == 1) {
-        printf("%d년은 윤년입니다.\n", year);
-    } else {
-        printf("%d년은 윤년이 아닙니다.\n", year);
+    for (y = 2000; y < year; y++) {
+        if (isLeapYear(y) == 1) {
+            totalDays += 366;
+        } else {
+            totalDays += 365;
+        }
     }
-    printf("이 달은 %d일까지 있습니다.\n", days);
-    printf("%d일 = %d주 %d일입니다.\n", days, weeks, rest);
+    for (m = 1; m < month; m++) {
+        totalDays += daysInMonth(year, m);
+    }
+    return (6 + totalDays) % 7;
+}
+
+/* ── [TODO 요구사항 4] 달력 격자 출력 ─────────────────────────────
+ * 달력은 「주」가 세로로 쌓이고 「요일」이 가로로 늘어선 격자입니다.
+ * 그 격자를 그대로 두 겹의 반복문으로 그리세요 — 바깥이 주, 안쪽이 요일.
+ *   · 한 줄은 7칸이고, 한 줄을 다 그리면 줄을 바꿉니다.
+ *   · 날짜가 놓이는 칸은 printf("%3d ", d)
+ *   · 날짜가 없는 칸은 공백 4개("    ")   ← 1일 앞과 말일 뒤
+ * 함정: 안쪽 반복은 7칸을 끝까지 돕니다. 날짜가 없다고 건너뛰면 칸이 밀립니다.
+ *       ─ 빈 칸을 찍고 「그 칸은 여기까지」로 넘어가는 방법이 있습니다. */
+void printCalendar(int firstWeekday, int days)
+{
+    int totalWeeks = (firstWeekday + days + 6) / 7;
+    int week = 0;
+    int dow = 0;
+
+    for (week = 0; week < totalWeeks; week++) {
+        for (dow = 0; dow < 7; dow++) {
+            int dayNum = week * 7 + dow - firstWeekday + 1;
+
+            if (dayNum >= 1 && dayNum <= days) {
+                printf("%3d ", dayNum);
+            } else {
+                printf("    ");
+            }
+        }
+        printf("\n");
+    }
+}
+
+/* ── [수정 금지] ─────────────────────────────────────────── */
+int main(void)
+{
+    int year = 0, month = 0, days = 0, firstWeekday = 0;
+
+    printf("=== 습관 트래커 ===\n");
+    printf("연도를 입력하세요 (2000~2100): ");
+    year = readIntInRange(2000, 2100);
+    printf("월을 입력하세요 (1~12): ");
+    month = readIntInRange(1, 12);
+
+    days = daysInMonth(year, month);
+    firstWeekday = firstWeekdayOf(year, month);
+
+    printf("\n         %d년 %d월\n", year, month);
+    printf("  일  월  화  수  목  금  토\n");
+    printCalendar(firstWeekday, days);
 
     return 0;
 }
