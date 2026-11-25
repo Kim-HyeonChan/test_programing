@@ -1,26 +1,29 @@
 /*
- * DASF004 (2026-2) · 실습#4 — 습관 트래커 ④: 묶고 넘기기
+ * DASF004 (2026-2) · 실습#5(프로젝트) — 습관 트래커 ⑤: 저장하고, 필요한 만큼만
  * ─────────────────────────────────────────────────────────
- * 학번을 붙여 WA4_학번.c 로 저장하고, 제출할 때 확장자를 .txt 로 바꾸세요.
- * 빌드: gcc -Wall -Wextra -std=c11 WA4_학번.c -o wa4
+ * 학번을 붙여 WA5_학번.c 로 저장하고, 제출할 때 확장자를 .txt 로 바꾸세요.
+ * 빌드: gcc -Wall -Wextra -std=c11 WA5_학번.c -o wa5
  *
- * [TODO 요구사항 1] ~ [TODO 요구사항 4] — 빈칸 다섯 곳을 채우면 완성입니다.
- *   · 요구사항 4 는 빈칸이 둘입니다 (4-a categoryName · 4-b printByCategory).
- *   · 구조체·열거형 정의, 승계 함수, main 은 [수정 금지] 입니다.
- *   · 포인터 산술·동적 메모리·파일 입출력은 쓰지 않습니다. (이번 과제의 범위 밖입니다)
+ * [TODO 요구사항 1] ~ [TODO 요구사항 3] 을 채우면 완성입니다.
+ *   · 실습#1~#4 에서 만든 함수는 [수정 금지] 로 완성된 채 제공합니다.
+ *   · 앞 실습을 못 하셨어도 이번 프로젝트는 처음부터 하실 수 있습니다.
+ *
+ * 담는 강의: 포인터와 배열 · 파일 입출력 · 동적 메모리
+ * 만점 20점 — 프로젝트.
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define MAX_HABITS 5
 #define MAX_NAME   32
 #define MAX_WEEKS  6
+#define MAX_MEMO   200
+#define SAVE_PATH  "habits.txt"
 #define DAY_BIT(d)      (1u << ((d) - 1))
 #define IS_DONE(m, d)   (((m) & DAY_BIT(d)) != 0u)
 
-/* ── [수정 금지] 열거형과 구조체 ─────────────────────────
- * 실습#3 까지는 상태가 배열 두 개(habitName[h] · doneMask[h])로 흩어져 있었고
- * 분류는 담을 자리조차 없었습니다. 둘을 같은 인덱스로 맞춰 줘야 했죠.
- * 구조체는 그 둘을 하나로 묶고 분류가 들어갈 칸까지 만들어 줍니다. */
+/* ── [수정 금지] 타입 · 전역 선언 ───────────────────────── */
 typedef enum { CAT_HEALTH = 1, CAT_STUDY = 2, CAT_LIFE = 3 } Category;
 
 typedef struct {
@@ -29,28 +32,33 @@ typedef struct {
     Category     cat;
 } Habit;
 
-/* ── [수정 금지] 파일 스코프 상태 ─────────────────────────── */
 Habit habits[MAX_HABITS];
+char *memo[MAX_HABITS];          /* 각 습관의 메모 — 필요한 만큼만 확보한다 */
+                                 /* ↑ 동적 메모리 문법입니다. [수정 금지]이고
+                                  *   동적 메모리를 배우기 전에는 읽지 않아도 요구사항 1·2 를 끝낼 수 있습니다. */
 int   habitCount = 0;
 int   curYear = 2026, curMonth = 1, curDays = 0, curFirstWeekday = 0;
 
-/* ── [수정 금지] 함수 선언 ───────────────────────────────── */
 int  readIntInRange(int lo, int hi);
 void flushLine(void);
 int  isLeapYear(int year);
 int  daysInMonth(int year, int month);
 int  firstWeekdayOf(int year, int month);
 const char *categoryName(Category c);
-void showPassingDemo(void);
 void readHabits(void);
 void toggleDay(int h, int d);
 void printCalendar(int h);
 void printWeeklyTable(void);
 void renameHabit(Habit *h);
 void habitStats(const Habit *h, int *pDone, int *pBest);
+void printSummary(const Habit *arr, int n);
+void saveToFile(void);
+int  loadFromFile(void);
 void printByCategory(void);
+void setMemo(int h);
+void freeAll(void);
 
-/* ── [수정 금지] 이미 완성되어 제공되는 함수들 ───────────── */
+/* ── [수정 금지] 실습#2·#3 에서 만든 함수 ──────────────────── */
 /* ── [수정 금지] 입력 줄의 남은 부분을 버린다 ─────────────
  * 이름이 버퍼보다 길면 남은 글자가 입력에 남아 그다음 숫자 읽기를 망친다.
  * (한글은 한 글자가 3바이트라 금방 넘친다)
@@ -85,40 +93,34 @@ int firstWeekdayOf(int year, int month)
     for (int m = 1; m < month; m++)   elapsed += daysInMonth(year, m);
     return (int)((6 + elapsed) % 7);
 }
-
-/* ── [수정 금지] 값 전달 vs 포인터 전달 — 시작할 때 한 번 보여 줍니다 ──
- * 이번 과제의 요점입니다. **같은 일을 하는 두 함수**를 나란히 부릅니다.
- *   · byValue   — 구조체를 통째로 복사해서 받는다  → 원본은 안 바뀐다
- *   · byPointer — 원본의 주소를 받는다             → 원본이 바뀐다
- * 4-a 를 채운 뒤 아래 두 줄의 출력이 다르다는 것이 요구사항 2 를 포인터로 받아야 하는 이유입니다.
- * (직접 실험해 보고 싶으면 이 두 함수를 복사해서 여러분 코드에 써 보세요.
- *  main 과 renameHabit 의 선언은 고치지 않습니다.) */
-void demoSetByValue(Habit copy)
+/* ── [수정 금지] 실습#4 요구사항 4 ─────────────────────────────── */
+const char *categoryName(Category c)
 {
-    copy.cat = CAT_LIFE;
-    printf("  값 전달   — 함수 안 : %s\n", categoryName(copy.cat));
+    switch (c) {
+    case CAT_HEALTH: return "건강";
+    case CAT_STUDY:  return "학습";
+    case CAT_LIFE:   return "생활";
+    }
+    return "생활";
 }
 
-void demoSetByPointer(Habit *ptr)
+void printByCategory(void)
 {
-    ptr->cat = CAT_LIFE;
-    printf("  포인터    — 함수 안 : %s\n", categoryName(ptr->cat));
+    printf("--- 분류별 집계 ---\n");
+    for (int c = CAT_HEALTH; c <= CAT_LIFE; c++) {
+        int count = 0, total = 0;
+        for (int h = 0; h < habitCount; h++) {
+            int done = 0, best = 0;
+            if (habits[h].cat != (Category)c) continue;
+            habitStats(&habits[h], &done, &best);
+            count++;
+            total += done;
+        }
+        printf("  %s  %d개  달성 %d일\n", categoryName((Category)c), count, total);
+    }
+    printf("-------------------\n");
 }
-
-void showPassingDemo(void)
-{
-    Habit sample;
-    sample.doneMask = 0u;
-    sample.cat = CAT_HEALTH;
-    sample.name[0] = '\0';
-
-    printf("--- [참고] 값 전달 vs 포인터 전달 ---\n");
-    demoSetByValue(sample);
-    printf("  값 전달   — main 은 : %s   <- 안 바뀐다\n", categoryName(sample.cat));
-    demoSetByPointer(&sample);
-    printf("  포인터    — main 은 : %s   <- 바뀐다\n", categoryName(sample.cat));
-    printf("------------------------------------\n");
-}
+/* ── [수정 금지] 실습#2·#3 에서 만든 함수 — toggleDay · printCalendar · printWeeklyTable ── */
 void toggleDay(int h, int d)
 {
     if (IS_DONE(habits[h].doneMask, d)) {
@@ -167,52 +169,22 @@ void printWeeklyTable(void)
     }
 }
 
-/* ── [TODO 요구사항 1] 구조체 배열을 채운다 ──────────────────────
- * 1) 프롬프트를 찍고 개수를 1~MAX_HABITS 로 받아 habitCount 에 넣는다.
- *        습관을 몇 개 기록하시겠어요? (1~5):
- * 2) h = 0 .. habitCount-1 반복하며
- *        %d번 습관 이름 (공백 없이):            ← h+1
- *    을 찍고 이름을 %31s 서식으로 그 습관의 name 에 받는다. 직후에 flushLine().
- *        "   분류 (1=건강 2=학습 3=생활): "     ← 앞에 공백 3칸
- *    을 찍고 1~3 을 받아 그 습관의 cat 에 넣는다.
- *    같은 반복 안에서 그 습관의 doneMask 를 0 으로 초기화한다.
- * 힌트: 배열 원소가 구조체이므로 . 으로 멤버에 닿습니다.
- * 함정: cat 은 Category 형입니다. 받은 정수는 (Category) 로 형을 밝혀서 넣으세요.
- *       형을 안 밝혀도 컴파일은 되지만, 밝혀 두면 어떤 형의 값인지가 코드에 남습니다.
- * 💡 doneMask 는 파일 스코프 배열 안에 있어 처음엔 자동으로 0 입니다.
- *    그래도 명시적으로 0 을 넣어 두세요 — 「어디서 0 이 되는지」가 코드에
- *    보여야 하고, 같은 코드를 함수 안 지역 변수로 옮기면 그때는 쓰레기값입니다.
- *
- * ⚠️ 반복문 안의 scanf·flushLine 두 줄은 이름을 전부 habits[0] 에 덮어쓰고, dummy 는 분류를 버리는 임시 코드입니다.
- *    (없으면 뒤 입력이 어긋나 프로그램이 멈춥니다) — 위 2) 대로 고치세요. */
+/* ── [수정 금지] 실습#4 요구사항 1 ─────────────────────────────── */
 void readHabits(void)
 {
     printf("습관을 몇 개 기록하시겠어요? (1~%d): ", MAX_HABITS);
     habitCount = readIntInRange(1, MAX_HABITS);
-
     for (int h = 0; h < habitCount; h++) {
         printf("%d번 습관 이름 (공백 없이): ", h + 1);
         scanf("%31s", habits[h].name);
         flushLine();
-
         printf("   분류 (1=건강 2=학습 3=생활): ");
         habits[h].cat = (Category)readIntInRange(1, 3);
-
         habits[h].doneMask = 0u;
     }
 }
 
-/* ── [TODO 요구사항 2] 포인터로 원본을 고친다 ────────────────────
- * 1) "새 이름 (공백 없이): " 를 찍고 새 이름을 지역 배열에 받는다.
- * 2) 바꾸기 전에 아래를 출력한다.
- *        [%s] → [%s] 로 바꿨습니다.\n      ← 옛 이름, 새 이름 순
- * 3) h 가 가리키는 구조체의 name 을 새 이름으로 덮는다.
- * 힌트: h 는 포인터입니다. 멤버에 닿을 때는 h->name 을 씁니다.
- *       문자열 복사는 반복문으로 한 글자씩 옮기고 \0 을 만나면 멈춥니다.
- *       strcpy 를 쓰려면 맨 위 #include <stdio.h> 아래에 #include <string.h> 를
- *       직접 더하세요 — #include 줄은 [수정 금지]가 아닙니다.
- * 🔴 함정: 매개변수를 Habit h (값)로 받으면 함수 안에서만 바뀌고
- *          main 의 배열은 그대로입니다. 그게 이 요구사항의 요점입니다. */
+/* ── [수정 금지] 실습#4 요구사항 2·3 ──────────────────────────── */
 void renameHabit(Habit *h)
 {
     char newName[MAX_NAME];
@@ -220,105 +192,179 @@ void renameHabit(Habit *h)
     scanf("%31s", newName);
     flushLine();
     printf("[%s] → [%s] 로 바꿨습니다.\n", h->name, newName);
-    int i = 0;
-    while (newName[i] != '\0') {
+    for (int i = 0; i < MAX_NAME; i++) {
         h->name[i] = newName[i];
-        i++;
+        if (newName[i] == '\0') break;
     }
-    h->name[i] = '\0';
 }
 
-/* ── [TODO 요구사항 3] out-parameter 로 두 값을 돌려준다 ─────────
- * 1일부터 curDays 까지 훑으면서 두 가지를 구한다.
- *   · 달성한 날의 수        → *pDone 에 넣는다
- *   · 가장 긴 연속 달성 일수 → *pBest 에 넣는다
- * 힌트: 연속 길이를 세는 변수를 하나 두고, 체크된 날이면 +1,
- *       아니면 0 으로 되돌립니다. 그 값의 최댓값이 최장 연속입니다.
- * 함정: return 은 값을 하나만 돌려줍니다. 두 개를 돌려주려고 포인터 매개변수를
- *       받는 것이고, 넘어온 포인터가 「가리키는 자리」에 값을 씁니다.
- * 함정: h 는 const Habit * 입니다 — 읽기만 하고 고치지 마세요.
- * 🔴 이 함수는 아무것도 출력하지 않습니다. 화면의 세 줄([이름] (분류) ·
- *    달성 · 최장 연속)은 main 이 [수정 금지] 로 찍습니다. 함수 안에서
- *    또 찍으면 같은 줄이 두 번 나옵니다. */
+
 void habitStats(const Habit *h, int *pDone, int *pBest)
 {
-    int doneCount = 0;
-    int currentStreak = 0;
-    int maxStreak = 0;
-
+    int done = 0, run = 0, best = 0;
     for (int d = 1; d <= curDays; d++) {
         if (IS_DONE(h->doneMask, d)) {
-            doneCount++;
-            currentStreak++;
-            if (currentStreak > maxStreak) {
-                maxStreak = currentStreak;
-            }
+            done++;
+            run++;
+            if (run > best) best = run;
         } else {
-            currentStreak = 0;
+            run = 0;
         }
     }
-
-    *pDone = doneCount;
-    *pBest = maxStreak;
+    *pDone = done;
+    *pBest = best;
 }
 
-/* ── [TODO 요구사항 4-a] 분류 이름을 돌려준다 ────────────────────
- * Category 값 하나를 받아 "건강" · "학습" · "생활" 중 하나를 돌려줍니다.
- * 세 값이 서로 배타적이고 개수가 정해져 있으니, 값 하나로 갈래를 고르는
- * 문법이 여기 맞습니다.
- * 함정: 숫자 1·2·3 을 그대로 쓰지 말고 열거형이 만들어 둔 이름을 쓰세요.
- *       이름을 쓰면 나중에 분류가 늘어도 고칠 곳이 한 군데입니다. */
-const char *categoryName(Category c)
-{
-    switch (c) {
-        case CAT_HEALTH:
-            return "건강";
-        case CAT_STUDY:
-            return "학습";
-        case CAT_LIFE:
-            return "생활";
-        default:
-            return "?";
-    }
-}
-/* ── [TODO 요구사항 4-b] 분류별 집계 ─────────────────────────────
- * 세 분류를 차례로 돌면서, 그 분류에 속한 습관이 몇 개이고
- * 달성일수의 합이 얼마인지를 출력합니다. 습관이 없는 분류도 0 으로 찍습니다.
+
+/* ── [TODO 요구사항 1] 배열을 포인터로 받아 훑는다 (포인터와 배열) ──
+ * arr 는 습관 배열의 첫 원소를 가리키고, n 은 개수입니다.
  * 출력 서식:
- *     --- 분류별 집계 ---
- *       %s  %d개  달성 %d일        ← 분류 이름 · 개수 · 달성일수 합
- *     -------------------
- * 🔴 달성일수는 직접 세지 말고 요구사항 3 의 habitStats 를 부르세요.
- *    그 함수는 결과를 반환하지 않고 「받아 둔 자리에 써 주는」 방식입니다 —
- *    어디에 쓸지를 넘겨야 합니다.
- * 함정: 분류 값을 1·2·3 으로 세지 말고 열거형 이름으로 처음과 끝을 잡으세요. */
-void printByCategory(void)
+ *     \n=== 전체 요약 (%d년 %d월) ===\n
+ *     %d. %-10s (%s) %3d일\n        ← 번호(1부터) · 이름 · 분류 이름 · 달성일수
+ *     합계: %d일\n
+ * 🔴 포인터를 한 칸씩 앞으로 옮기며 훑으세요. 첨자로만 쓰면 화면은 같아도 감점입니다.
+ *    멤버에는 -> 로 닿습니다.
+ * 🔴 함정: 배열을 함수에 넘기면 「개수」가 따라가지 않습니다. 그래서 n 을 같이 받습니다.
+ *          sizeof(arr) 로는 원소 수를 알 수 없습니다 — 포인터의 크기가 나옵니다. */
+void printSummary(const Habit *arr, int n)
 {
-    printf("--- 분류별 집계 ---\n");
-    for (Category cat = CAT_HEALTH; cat <= CAT_LIFE; cat++) {
-        int count = 0;     
-        int totalDone = 0; 
+    int totalDone = 0;
+    const Habit *p = arr; // 첫 번째 습관을 가리키는 포인터
 
-        for (int h = 0; h < habitCount; h++) {
-            if (habits[h].cat == cat) {
-                count++;
-                
-                int done = 0, best = 0;
-                habitStats(&habits[h], &done, &best);
-                totalDone += done;
-            }
-        }
-        printf("  %s  %d개  달성 %d일\n", categoryName(cat), count, totalDone);
+    printf("\n=== 전체 요약 (%d년 %d월) ===\n", curYear, curMonth);
+
+    for (int i = 0; i < n; i++, p++) {
+        int done = 0, best = 0;
+        habitStats(p, &done, &best); // 포인터 p가 가리키는 습관의 달성 일수 계산
+        totalDone += done;
+
+        printf("%d. %-10s (%s) %3d일\n",
+               i + 1, p->name, categoryName(p->cat), done);
+    }
+    printf("합계: %d일\n", totalDone);
+}
+/* ── [TODO 요구사항 2] 파일로 저장하고 불러온다 (파일 입출력) ──────
+ * 저장 (SAVE_PATH 에 쓰기 모드로):
+ *     첫 줄        "%d %d %d\n"      ← curYear, curMonth, habitCount
+ *     습관마다 한 줄 "%s %d %u\n"     ← name, (int)cat, doneMask
+ *     끝나면       "%d개 습관을 저장했습니다.\n"
+ *     열기 실패 시  "[오류] 저장에 실패했습니다.\n"
+ * 불러오기 (읽기 모드):
+ *     첫 줄을 읽어 curYear·curMonth·habitCount 를 채우고
+ *     curDays·curFirstWeekday 를 다시 계산한 뒤(daysInMonth·firstWeekdayOf)
+ *     습관을 순서대로 읽는다.  끝나면 "%d개 습관을 불러왔습니다.\n" 후 1 을 반환.
+ *     파일이 없거나 첫 줄을 못 읽으면 "[오류] 저장된 파일이 없습니다.\n" 후 0 반환.
+ * 🔴 메모(요구사항 3)는 파일에 저장하지 않습니다. 불러오기는 연·월·습관 목록만 덮어쓰고
+ *    memo[] 는 건드리지 않습니다 — 불러온 뒤에도 메모는 그대로 남습니다.
+ * 힌트: fopen / fprintf / fscanf / fclose. 문자열은 "%31s" 로 받습니다.
+ * 🔴 함정: fopen 이 NULL 을 돌려줄 수 있습니다. 확인 없이 쓰면 프로그램이 죽습니다.
+ *          fclose 를 빠뜨리면 내용이 파일에 안 남을 수 있습니다. */
+void saveToFile(void)
+{
+    FILE *fp = fopen(SAVE_PATH, "w");
+    if (fp == NULL) {
+        printf("[오류] 저장에 실패했습니다.\n");
+        return;
     }
 
-    printf("-------------------\n");
+    // 첫 줄: 연도, 월, 습관 개수
+    fprintf(fp, "%d %d %d\n", curYear, curMonth, habitCount);
+
+    // 둘째 줄부터: 습관마다 이름, 분류(정수), 달성 비트마스크
+    for (int i = 0; i < habitCount; i++) {
+        fprintf(fp, "%s %d %u\n",
+                habits[i].name, (int)habits[i].cat, habits[i].doneMask);
+    }
+
+    fclose(fp);
+    printf("%d개 습관을 저장했습니다.\n", habitCount);
 }
+
+int loadFromFile(void)
+{
+    FILE *fp = fopen(SAVE_PATH, "r");
+    if (fp == NULL) {
+        printf("[오류] 저장된 파일이 없습니다.\n");
+        return 0;
+    }
+
+    // 첫 줄 읽기: 3개 값을 모두 못 읽으면 실패 처리
+    if (fscanf(fp, "%d %d %d", &curYear, &curMonth, &habitCount) != 3) {
+        fclose(fp);
+        printf("[오류] 저장된 파일이 없습니다.\n");
+        return 0;
+    }
+
+    // 불러온 연·월에 맞춰 일수와 시작 요일 재계산
+    curDays = daysInMonth(curYear, curMonth);
+    curFirstWeekday = firstWeekdayOf(curYear, curMonth);
+
+    // 습관 목록 순서대로 읽기
+    for (int i = 0; i < habitCount; i++) {
+        int catVal = 0;
+        if (fscanf(fp, "%31s %d %u",
+                   habits[i].name, &catVal, &habits[i].doneMask) != 3) {
+            break;
+        }
+        habits[i].cat = (Category)catVal;
+    }
+
+    fclose(fp);
+    printf("%d개 습관을 불러왔습니다.\n", habitCount);
+    return 1;
+}
+/* ── [TODO 요구사항 3] 메모 — 필요한 만큼만 확보하고 반납한다 (동적 메모리) ─
+ * 1) "메모 (공백 없이): " 를 찍고 지역 버퍼(char buf[MAX_MEMO])로 받는다. flushLine() 도 부른다.
+ * 2) 글자 수를 잰다(strlen).
+ * 3) 🔴 먼저 free(memo[h]) — 이전 메모가 있으면 반납한다.
+ * 4) 그다음 memo[h] 에 그 길이 + 1 바이트를 malloc 한다. 확보 실패면
+ *        "[오류] 메모리를 확보하지 못했습니다.\n" 을 내고 돌아간다.
+ * 5) 내용을 복사하고(strcpy) 아래를 출력한다.
+ *        [%s] 메모를 저장했습니다. (%d바이트)\n     ← 이름, 확보한 바이트 수
+ * 힌트: free(NULL) 은 아무 일도 하지 않습니다 — 처음이라도 그냥 부르면 됩니다.
+ * 🔴 함정 ①: +1 을 빼먹으면 널 문자가 들어갈 자리가 없습니다.
+ * 🔴 함정 ②: 새로 malloc 하기 전에 free 를 안 하면 그만큼이 샙니다.
+ * 🔴 순서: free 가 malloc 보다 뒤에 오면 옛 주소를 잃은 뒤에 놓아 주게 되어
+ *          이중 해제·use-after-free 가 됩니다. 당장은 돌아도 나중에(종료할 때 등)
+ *          죽거나 값이 깨질 수 있습니다. 순서를 지키세요.
+ * 💡 한글은 한 글자가 3바이트입니다 — 「아침에만」 4글자면 4 × 3 + 1 = 13바이트.
+ *
+ * ⚠️ setMemo 안의 임시 코드는 둘뿐입니다 — (void)h; 와 「(아직 미구현 …)」 출력 줄.
+ *    구현하면서 이 둘만 지우세요. 버퍼 · scanf · flushLine 은 1) 단계 그대로 씁니다. */
+void setMemo(int h)
+{
+    char buf[MAX_MEMO];
+    printf("메모 (공백 없이): ");
+    scanf("%199s", buf);
+    flushLine();
+
+    int bytes = (int)strlen(buf) + 1; // 문자열 길이 + 널 문자('\0') 1바이트
+
+    free(memo[h]);                    // 1) 기존 메모가 있으면 먼저 반납
+    memo[h] = malloc((size_t)bytes);  // 2) 필요한 만큼만 새로 할당
+    if (memo[h] == NULL) {            // 3) 할당 실패 확인
+        printf("[오류] 메모리를 확보하지 못했습니다.\n");
+        return;
+    }
+
+    strcpy(memo[h], buf);             // 4) 입력받은 메모 복사
+    printf("[%s] 메모를 저장했습니다. (%d바이트)\n", habits[h].name, bytes);
+}
+
+/* ── [수정 금지] 종료 시 전량 반납 (동적 메모리 — 손대지 않습니다) ── */
+void freeAll(void)
+{
+    for (int h = 0; h < MAX_HABITS; h++) {
+        free(memo[h]);
+        memo[h] = NULL;
+    }
+}
+
 /* ── [수정 금지] ─────────────────────────────────────────── */
 int main(void)
 {
     int choice = 0, h = 0, d = 0, done = 0, best = 0;
 
-    showPassingDemo();
     printf("========== 습관 트래커 ==========\n");
     printf("연도를 입력하세요 (2000~2100): ");
     curYear = readIntInRange(2000, 2100);
@@ -330,8 +376,9 @@ int main(void)
     readHabits();
 
     do {
-        printf("\n%d년 %d월 | [1]체크 [2]달력 [3]집계 [4]이름 [5]통계 [0]종료 > ", curYear, curMonth);
-        choice = readIntInRange(0, 5);
+        printf("\n%d년 %d월 | [1]체크 [2]달력 [3]집계 [4]이름 [5]통계\n", curYear, curMonth);
+        printf("           | [6]요약 [7]저장 [8]불러오기 [9]메모 [0]종료 > ");
+        choice = readIntInRange(0, 9);
 
         if (choice == 1) {
             printf("습관 번호 (1~%d): ", habitCount);
@@ -358,10 +405,22 @@ int main(void)
             printf("  달성: %d일 / %d일\n", done, curDays);
             printf("  최장 연속: %d일\n", best);
             printByCategory();
+            if (memo[h - 1] != NULL) printf("  메모: %s\n", memo[h - 1]);
+        } else if (choice == 6) {
+            printSummary(habits, habitCount);
+        } else if (choice == 7) {
+            saveToFile();
+        } else if (choice == 8) {
+            loadFromFile();
+        } else if (choice == 9) {
+            printf("메모를 쓸 습관 번호 (1~%d): ", habitCount);
+            h = readIntInRange(1, habitCount);
+            setMemo(h - 1);
         } else {
             printf("종료합니다.\n");
         }
     } while (choice != 0);
 
+    freeAll();
     return 0;
 }
